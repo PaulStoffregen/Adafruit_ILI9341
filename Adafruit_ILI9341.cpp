@@ -35,10 +35,11 @@ Adafruit_ILI9341::Adafruit_ILI9341(int8_t cs, int8_t dc, int8_t mosi,
 
 // Constructor when using hardware SPI.  Faster, but must use SPI pins
 // specific to each board type (e.g. 11,13 for Uno, 51,52 for Mega, etc.)
-Adafruit_ILI9341::Adafruit_ILI9341(int8_t cs, int8_t dc, int8_t rst) : Adafruit_GFX(ILI9341_TFTWIDTH, ILI9341_TFTHEIGHT) {
+Adafruit_ILI9341::Adafruit_ILI9341(int8_t cs, int8_t dc, int8_t rst, int8_t buss) : Adafruit_GFX(ILI9341_TFTWIDTH, ILI9341_TFTHEIGHT) {
   _cs   = cs;
   _dc   = dc;
   _rst  = rst;
+  _buss = buss; // save away the buss.
   hwSPI = true;
   _mosi  = _sclk = 0;
 }
@@ -54,6 +55,12 @@ void Adafruit_ILI9341::spiwrite(uint8_t c) {
     SPDR = c;
     while(!(SPSR & _BV(SPIF)));
     SPCR = backupSPCR;
+#elif defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1)
+      SPI1.transfer(c);
+    else
+      SPI.transfer(c);
 #elif defined(TEENSYDUINO)
     SPI.transfer(c);
 #elif defined (__arm__)
@@ -181,6 +188,20 @@ void Adafruit_ILI9341::begin(void) {
     SPI.setBitOrder(MSBFIRST);
     SPI.setDataMode(SPI_MODE0);
     mySPCR = SPCR;
+#elif defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1) {
+      SPI1.begin();
+      SPI1.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
+      SPI1.setBitOrder(MSBFIRST);
+      SPI1.setDataMode(SPI_MODE0);
+    }
+    else {
+      SPI.begin();
+      SPI.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
+      SPI.setBitOrder(MSBFIRST);
+      SPI.setDataMode(SPI_MODE0);
+    }
 #elif defined(TEENSYDUINO)
     SPI.begin();
     SPI.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
@@ -550,6 +571,12 @@ uint8_t Adafruit_ILI9341::spiread(void) {
     while(!(SPSR & _BV(SPIF)));
     r = SPDR;
     SPCR = backupSPCR;
+#elif defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1)
+      r = SPI1.transfer(0);
+    else
+      r = SPI.transfer(0);
 #elif defined(TEENSYDUINO)
     r = SPI.transfer(0x00);
 #elif defined (__arm__)

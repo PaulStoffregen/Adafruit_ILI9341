@@ -103,7 +103,7 @@ class Adafruit_ILI9341 : public Adafruit_GFX {
 
   Adafruit_ILI9341(int8_t _CS, int8_t _DC, int8_t _MOSI, int8_t _SCLK,
 		   int8_t _RST, int8_t _MISO);
-  Adafruit_ILI9341(int8_t _CS, int8_t _DC, int8_t _RST = -1);
+  Adafruit_ILI9341(int8_t _CS, int8_t _DC, int8_t _RST = -1, int8_t _BUSS=0);
 
   void     begin(void),
            setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1),
@@ -142,7 +142,7 @@ class Adafruit_ILI9341 : public Adafruit_GFX {
 #if defined (__AVR__) || defined(TEENSYDUINO)
   uint8_t mySPCR;
   volatile uint8_t *mosiport, *clkport, *dcport, *rsport, *csport;
-  int8_t  _cs, _dc, _rst, _mosi, _miso, _sclk;
+  int8_t  _cs, _dc, _rst, _mosi, _miso, _sclk, _buss;
   uint8_t  mosipinmask, clkpinmask, cspinmask, dcpinmask;
 #elif defined (__arm__)
     volatile RwReg *mosiport, *clkport, *dcport, *rsport, *csport;
