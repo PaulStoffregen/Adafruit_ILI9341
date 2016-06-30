@@ -35,10 +35,11 @@ Adafruit_ILI9341::Adafruit_ILI9341(int8_t cs, int8_t dc, int8_t mosi,
 
 // Constructor when using hardware SPI.  Faster, but must use SPI pins
 // specific to each board type (e.g. 11,13 for Uno, 51,52 for Mega, etc.)
-Adafruit_ILI9341::Adafruit_ILI9341(int8_t cs, int8_t dc, int8_t rst) : Adafruit_GFX(ILI9341_TFTWIDTH, ILI9341_TFTHEIGHT) {
+Adafruit_ILI9341::Adafruit_ILI9341(int8_t cs, int8_t dc, int8_t rst, int8_t buss) : Adafruit_GFX(ILI9341_TFTWIDTH, ILI9341_TFTHEIGHT) {
   _cs   = cs;
   _dc   = dc;
   _rst  = rst;
+  _buss = buss; // save away the buss.
   hwSPI = true;
   _mosi  = _sclk = 0;
 }
@@ -54,6 +55,12 @@ void Adafruit_ILI9341::spiwrite(uint8_t c) {
     SPDR = c;
     while(!(SPSR & _BV(SPIF)));
     SPCR = backupSPCR;
+#elif defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1)
+      SPI1.transfer(c);
+    else
+      SPI.transfer(c);
 #elif defined(TEENSYDUINO)
     SPI.transfer(c);
 #elif defined (__arm__)
@@ -113,19 +120,29 @@ void Adafruit_ILI9341::writedata(uint8_t c) {
 // If the SPI library has transaction support, these functions
 // establish settings and protect from interference from other
 // libraries.  Otherwise, they simply do nothing.
+void Adafruit_ILI9341::spi_begin(void) {
 #ifdef SPI_HAS_TRANSACTION
-static inline void spi_begin(void) __attribute__((always_inline));
-static inline void spi_begin(void) {
-  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
-}
-static inline void spi_end(void) __attribute__((always_inline));
-static inline void spi_end(void) {
-  SPI.endTransaction();
-}
-#else
-#define spi_begin()
-#define spi_end()
+#if defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1) 
+      SPI1.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+    else
 #endif
+      SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+#endif    
+}
+
+void Adafruit_ILI9341::spi_end(void) {
+#ifdef SPI_HAS_TRANSACTION
+#if defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1) 
+      SPI1.endTransaction();
+    else
+#endif
+      SPI.endTransaction();
+#endif
+}
 
 // Rather than a bazillion writecommand() and writedata() calls, screen
 // initialization commands and arguments are organized in these tables
@@ -181,6 +198,20 @@ void Adafruit_ILI9341::begin(void) {
     SPI.setBitOrder(MSBFIRST);
     SPI.setDataMode(SPI_MODE0);
     mySPCR = SPCR;
+#elif defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1) {
+      SPI1.begin();
+      SPI1.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
+      SPI1.setBitOrder(MSBFIRST);
+      SPI1.setDataMode(SPI_MODE0);
+    }
+    else {
+      SPI.begin();
+      SPI.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
+      SPI.setBitOrder(MSBFIRST);
+      SPI.setDataMode(SPI_MODE0);
+    }
 #elif defined(TEENSYDUINO)
     SPI.begin();
     SPI.setClockDivider(SPI_CLOCK_DIV2); // 8 MHz (full! speed!)
@@ -227,7 +258,6 @@ void Adafruit_ILI9341::begin(void) {
   Serial.print("\nSelf Diagnostic: 0x"); Serial.println(x, HEX);
 */
   //if(cmdList) commandList(cmdList);
-  
   if (hwSPI) spi_begin();
   writecommand(0xEF);
   writedata(0x03);
@@ -333,6 +363,7 @@ void Adafruit_ILI9341::begin(void) {
   writedata(0x0F); 
 
   writecommand(ILI9341_SLPOUT);    //Exit Sleep 
+
   if (hwSPI) spi_end();
   delay(120); 		
   if (hwSPI) spi_begin();
@@ -550,6 +581,12 @@ uint8_t Adafruit_ILI9341::spiread(void) {
     while(!(SPSR & _BV(SPIF)));
     r = SPDR;
     SPCR = backupSPCR;
+#elif defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1)
+      r = SPI1.transfer(0);
+    else
+      r = SPI.transfer(0);
 #elif defined(TEENSYDUINO)
     r = SPI.transfer(0x00);
 #elif defined (__arm__)
