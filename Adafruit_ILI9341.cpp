@@ -120,19 +120,29 @@ void Adafruit_ILI9341::writedata(uint8_t c) {
 // If the SPI library has transaction support, these functions
 // establish settings and protect from interference from other
 // libraries.  Otherwise, they simply do nothing.
+void Adafruit_ILI9341::spi_begin(void) {
 #ifdef SPI_HAS_TRANSACTION
-static inline void spi_begin(void) __attribute__((always_inline));
-static inline void spi_begin(void) {
-  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
-}
-static inline void spi_end(void) __attribute__((always_inline));
-static inline void spi_end(void) {
-  SPI.endTransaction();
-}
-#else
-#define spi_begin()
-#define spi_end()
+#if defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1) 
+      SPI1.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+    else
 #endif
+      SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
+#endif    
+}
+
+void Adafruit_ILI9341::spi_end(void) {
+#ifdef SPI_HAS_TRANSACTION
+#if defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.4/3.5
+    // These Teensys have at least 2 SPI ports
+    if (_buss == 1) 
+      SPI1.endTransaction();
+    else
+#endif
+      SPI.endTransaction();
+#endif
+}
 
 // Rather than a bazillion writecommand() and writedata() calls, screen
 // initialization commands and arguments are organized in these tables
@@ -248,7 +258,6 @@ void Adafruit_ILI9341::begin(void) {
   Serial.print("\nSelf Diagnostic: 0x"); Serial.println(x, HEX);
 */
   //if(cmdList) commandList(cmdList);
-  
   if (hwSPI) spi_begin();
   writecommand(0xEF);
   writedata(0x03);
@@ -354,6 +363,7 @@ void Adafruit_ILI9341::begin(void) {
   writedata(0x0F); 
 
   writecommand(ILI9341_SLPOUT);    //Exit Sleep 
+
   if (hwSPI) spi_end();
   delay(120); 		
   if (hwSPI) spi_begin();

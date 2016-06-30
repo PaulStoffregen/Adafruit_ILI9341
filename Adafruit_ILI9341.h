@@ -24,7 +24,7 @@
 #endif
 #include <Adafruit_GFX.h>
 #include <avr/pgmspace.h>
-
+#include <SPI.h>
 
 #define ILI9341_TFTWIDTH  240
 #define ILI9341_TFTHEIGHT 320
@@ -149,6 +149,9 @@ class Adafruit_ILI9341 : public Adafruit_GFX {
     uint32_t  _cs, _dc, _rst, _mosi, _miso, _sclk;
     uint32_t  mosipinmask, clkpinmask, cspinmask, dcpinmask;
 #endif
+    inline void spi_begin(void) __attribute__((always_inline));
+    inline void spi_end(void) __attribute__((always_inline));
+
 };
 
 #endif
